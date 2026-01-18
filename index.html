@@ -1,64 +1,123 @@
-<?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ветеринарная клиника</title>
+    <title>Ветеринарная клиника - Firebase</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
         }
 
         .section {
             margin-bottom: 30px;
-            padding: 15px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+
+        h1 {
+            color: #2c3e50;
+            text-align: center;
         }
 
         h2 {
-            color: #333;
+            color: #34495e;
+            margin-top: 0;
+        }
+
+        .form-group {
+            margin-bottom: 10px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
         }
 
         input, select, button {
-            margin: 5px;
-            padding: 8px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
         }
+
+        input, select {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+            button:hover {
+                background: #2980b9;
+            }
+
+            button.delete {
+                background: #e74c3c;
+            }
+
+                button.delete:hover {
+                    background: #c0392b;
+                }
 
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 10px;
+            margin-top: 15px;
         }
 
         th, td {
+            padding: 10px;
             border: 1px solid #ddd;
-            padding: 8px;
             text-align: left;
         }
 
         th {
-            background-color: #f2f2f2;
+            background: #34495e;
+            color: white;
         }
 
-        button {
-            cursor: pointer;
+        tr:hover {
+            background: #f5f5f5;
+        }
+
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+
+        .connected {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
         }
     </style>
 </head>
 <body>
-
-    <h1>🐾 Ветеринарная клиника - Панель управления</h1>
+    <h1>🐾 Ветеринарная клиника (Firebase)</h1>
+    <div id="firebaseStatus" class="status">Проверка подключения к базе...</div>
 
     <!-- Владельцы -->
     <div class="section">
         <h2>Владельцы</h2>
-        <input id="ownerName" placeholder="Имя владельца">
-        <input id="ownerPhone" placeholder="Телефон">
-        <button onclick="addOwner()">Добавить владельца</button>
-        <table id="ownersTable">
+        <div class="form-group">
+            <input id="ownerName" placeholder="Имя владельца">
+            <input id="ownerPhone" placeholder="Телефон">
+            <button onclick="addOwner()">Добавить владельца</button>
+        </div>
+        <table>
             <thead>
                 <tr>
                     <th>ID</th>
@@ -67,20 +126,22 @@
                     <th>Действия</th>
                 </tr>
             </thead>
-            <tbody></tbody>
+            <tbody id="ownersTable"></tbody>
         </table>
     </div>
 
     <!-- Животные -->
     <div class="section">
         <h2>Животные</h2>
-        <select id="animalOwner">
-            <option value="">Выберите владельца</option>
-        </select>
-        <input id="animalName" placeholder="Кличка животного">
-        <input id="animalType" placeholder="Вид (например, кошка)">
-        <button onclick="addAnimal()">Добавить животное</button>
-        <table id="animalsTable">
+        <div class="form-group">
+            <select id="animalOwner">
+                <option value="">Выберите владельца</option>
+            </select>
+            <input id="animalName" placeholder="Кличка животного">
+            <input id="animalType" placeholder="Вид (кошка, собака)">
+            <button onclick="addAnimal()">Добавить животное</button>
+        </div>
+        <table>
             <thead>
                 <tr>
                     <th>ID</th>
@@ -90,17 +151,19 @@
                     <th>Действия</th>
                 </tr>
             </thead>
-            <tbody></tbody>
+            <tbody id="animalsTable"></tbody>
         </table>
     </div>
 
     <!-- Ветеринары -->
     <div class="section">
         <h2>Ветеринары</h2>
-        <input id="vetName" placeholder="Имя ветеринара">
-        <input id="vetSpecialty" placeholder="Специализация">
-        <button onclick="addVet()">Добавить ветеринара</button>
-        <table id="vetsTable">
+        <div class="form-group">
+            <input id="vetName" placeholder="Имя ветеринара">
+            <input id="vetSpecialty" placeholder="Специализация">
+            <button onclick="addVet()">Добавить ветеринара</button>
+        </div>
+        <table>
             <thead>
                 <tr>
                     <th>ID</th>
@@ -109,22 +172,24 @@
                     <th>Действия</th>
                 </tr>
             </thead>
-            <tbody></tbody>
+            <tbody id="vetsTable"></tbody>
         </table>
     </div>
 
     <!-- Записи на приём -->
     <div class="section">
         <h2>Записи на приём</h2>
-        <select id="appointmentAnimal">
-            <option value="">Выберите животное</option>
-        </select>
-        <select id="appointmentVet">
-            <option value="">Выберите ветеринара</option>
-        </select>
-        <input type="datetime-local" id="appointmentDate">
-        <button onclick="addAppointment()">Добавить запись</button>
-        <table id="appointmentsTable">
+        <div class="form-group">
+            <select id="appointmentAnimal">
+                <option value="">Выберите животное</option>
+            </select>
+            <select id="appointmentVet">
+                <option value="">Выберите ветеринара</option>
+            </select>
+            <input type="datetime-local" id="appointmentDate">
+            <button onclick="addAppointment()">Добавить запись</button>
+        </div>
+        <table>
             <thead>
                 <tr>
                     <th>ID</th>
@@ -135,20 +200,25 @@
                     <th>Действия</th>
                 </tr>
             </thead>
-            <tbody></tbody>
+            <tbody id="appointmentsTable"></tbody>
         </table>
     </div>
 
-    <!-- Поиск посещений по клиенту -->
+    <!-- Поиск посещений -->
     <div class="section">
         <h2>Посещения клиента</h2>
-        <select id="searchOwner">
-            <option value="">Выберите владельца</option>
-        </select>
-        <button onclick="showVisitsByOwner()">Показать посещения</button>
+        <div class="form-group">
+            <select id="searchOwner">
+                <option value="">Выберите владельца</option>
+            </select>
+            <button onclick="showVisitsByOwner()">Показать посещения</button>
+        </div>
         <div id="visitsResult"></div>
     </div>
 
+    <!-- Подключение Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore.js"></script>
     <script src="app.js"></script>
 </body>
 </html>
