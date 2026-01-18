@@ -14,6 +14,7 @@ try {
     console.log("Firebase инициализирован");
 } catch (error) {
     console.error("Ошибка инициализации Firebase:", error);
+    alert("Ошибка подключения к базе данных. Проверь консоль.");
 }
 
 const db = firebase.firestore();
@@ -26,55 +27,108 @@ let data = {
     appointments: []
 };
 
+// ==================== СТАТУС ПОДКЛЮЧЕНИЯ ====================
+function updateStatus(message, isError = false) {
+    const statusEl = document.getElementById('firebaseStatus');
+    if (statusEl) {
+        statusEl.textContent = message;
+        statusEl.className = isError ? 'status error' : 'status connected';
+    }
+    console.log(isError ? '❌ ' : '✅ ', message);
+}
+
+// ==================== ПРОВЕРКА ПОДКЛЮЧЕНИЯ ====================
+async function checkConnection() {
+    try {
+        updateStatus("Проверка подключения к Firebase...");
+
+        // Пробуем прочитать что-то из базы
+        const testQuery = await db.collection('owners').limit(1).get();
+
+        updateStatus("Подключено к Firebase. База данных готова.");
+        return true;
+    } catch (error) {
+        console.error("Ошибка подключения:", error);
+        updateStatus(`Ошибка подключения: ${error.message}`, true);
+        return false;
+    }
+}
+
 // ==================== СЛУШАТЕЛИ ИЗМЕНЕНИЙ В БАЗЕ ====================
 function setupListeners() {
-    // Слушаем изменения владельцев
+    // Владельцы
     db.collection('owners').onSnapshot(snapshot => {
-        data.owners = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        data.owners = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
         renderOwners();
         updateSelects();
-        console.log('Владельцы обновлены:', data.owners.length);
+        console.log(`Владельцы: ${data.owners.length} записей`);
+    }, error => {
+        console.error("Ошибка слушателя владельцев:", error);
     });
 
-    // Слушаем изменения животных
+    // Животные
     db.collection('animals').onSnapshot(snapshot => {
-        data.animals = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        data.animals = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
         renderAnimals();
         updateSelects();
-        console.log('Животные обновлены:', data.animals.length);
+        console.log(`Животные: ${data.animals.length} записей`);
+    }, error => {
+        console.error("Ошибка слушателя животных:", error);
     });
 
-    // Слушаем изменения ветеринаров
+    // Ветеринары
     db.collection('vets').onSnapshot(snapshot => {
-        data.vets = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        data.vets = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
         renderVets();
         updateSelects();
-        console.log('Ветеринары обновлены:', data.vets.length);
+        console.log(`Ветеринары: ${data.vets.length} записей`);
+    }, error => {
+        console.error("Ошибка слушателя ветеринаров:", error);
     });
 
-    // Слушаем изменения записей
+    // Записи
     db.collection('appointments').onSnapshot(snapshot => {
-        data.appointments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        data.appointments = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
         renderAppointments();
-        console.log('Записи обновлены:', data.appointments.length);
+        console.log(`Записи: ${data.appointments.length} записей`);
+    }, error => {
+        console.error("Ошибка слушателя записей:", error);
     });
 }
 
 // ==================== ОБНОВЛЕНИЕ ВЫПАДАЮЩИХ СПИСКОВ ====================
 function updateSelects() {
-    // Владельцы
+    // Владельцы для животных
     const ownerSelect = document.getElementById('animalOwner');
     const searchOwnerSelect = document.getElementById('searchOwner');
-    if (ownerSelect && searchOwnerSelect) {
+
+    if (ownerSelect) {
         ownerSelect.innerHTML = '<option value="">Выберите владельца</option>';
-        searchOwnerSelect.innerHTML = '<option value="">Выберите владельца</option>';
         data.owners.forEach(owner => {
             ownerSelect.innerHTML += `<option value="${owner.id}">${owner.name}</option>`;
+        });
+    }
+
+    if (searchOwnerSelect) {
+        searchOwnerSelect.innerHTML = '<option value="">Выберите владельца</option>';
+        data.owners.forEach(owner => {
             searchOwnerSelect.innerHTML += `<option value="${owner.id}">${owner.name}</option>`;
         });
     }
 
-    // Животные
+    // Животные для записей
     const animalSelect = document.getElementById('appointmentAnimal');
     if (animalSelect) {
         animalSelect.innerHTML = '<option value="">Выберите животное</option>';
@@ -84,7 +138,7 @@ function updateSelects() {
         });
     }
 
-    // Ветеринары
+    // Ветеринары для записей
     const vetSelect = document.getElementById('appointmentVet');
     if (vetSelect) {
         vetSelect.innerHTML = '<option value="">Выберите ветеринара</option>';
@@ -105,38 +159,35 @@ async function addOwner() {
     }
 
     try {
+        console.log("Добавляем владельца:", name);
+
         await db.collection('owners').add({
             name: name,
             phone: phone,
-            createdAt: new Date().toISOString()
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
+        // Очищаем поля
         document.getElementById('ownerName').value = '';
         document.getElementById('ownerPhone').value = '';
-        console.log('Владелец добавлен');
+
+        console.log("Владелец добавлен");
     } catch (error) {
-        console.error('Ошибка добавления владельца:', error);
-        alert('Ошибка добавления владельца');
+        console.error("Ошибка добавления владельца:", error);
+        alert('Ошибка добавления владельца: ' + error.message);
     }
 }
 
 async function deleteOwner(id) {
-    if (!confirm('Удалить владельца?')) return;
+    if (!confirm('Удалить владельца и всех его животных?')) return;
 
     try {
         // Удаляем владельца
         await db.collection('owners').doc(id).delete();
-
-        // Удаляем всех его животных
-        const animalsToDelete = data.animals.filter(a => a.ownerId === id);
-        for (const animal of animalsToDelete) {
-            await db.collection('animals').doc(animal.id).delete();
-        }
-
-        console.log('Владелец и его животные удалены');
+        console.log("Владелец удален");
     } catch (error) {
-        console.error('Ошибка удаления владельца:', error);
-        alert('Ошибка удаления владельца');
+        console.error("Ошибка удаления владельца:", error);
+        alert('Ошибка удаления владельца: ' + error.message);
     }
 }
 
@@ -145,9 +196,11 @@ function renderOwners() {
     if (!tbody) return;
 
     tbody.innerHTML = '';
+
     data.owners.forEach(owner => {
+        const shortId = owner.id.substring(0, 6) + '...';
         const row = `<tr>
-            <td>${owner.id.substring(0, 8)}...</td>
+            <td>${shortId}</td>
             <td>${owner.name}</td>
             <td>${owner.phone || ''}</td>
             <td>
@@ -165,7 +218,7 @@ async function addAnimal() {
     const type = document.getElementById('animalType').value.trim();
 
     if (!ownerId || !name) {
-        alert('Выберите владельца и введите кличку');
+        alert('Выберите владельца и введите кличку животного');
         return;
     }
 
@@ -174,15 +227,15 @@ async function addAnimal() {
             name: name,
             type: type,
             ownerId: ownerId,
-            createdAt: new Date().toISOString()
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
         document.getElementById('animalName').value = '';
         document.getElementById('animalType').value = '';
-        console.log('Животное добавлено');
+        console.log("Животное добавлено");
     } catch (error) {
-        console.error('Ошибка добавления животного:', error);
-        alert('Ошибка добавления животного');
+        console.error("Ошибка добавления животного:", error);
+        alert('Ошибка добавления животного: ' + error.message);
     }
 }
 
@@ -191,10 +244,10 @@ async function deleteAnimal(id) {
 
     try {
         await db.collection('animals').doc(id).delete();
-        console.log('Животное удалено');
+        console.log("Животное удалено");
     } catch (error) {
-        console.error('Ошибка удаления животного:', error);
-        alert('Ошибка удаления животного');
+        console.error("Ошибка удаления животного:", error);
+        alert('Ошибка удаления животного: ' + error.message);
     }
 }
 
@@ -203,10 +256,13 @@ function renderAnimals() {
     if (!tbody) return;
 
     tbody.innerHTML = '';
+
     data.animals.forEach(animal => {
         const owner = data.owners.find(o => o.id === animal.ownerId);
+        const shortId = animal.id.substring(0, 6) + '...';
+
         const row = `<tr>
-            <td>${animal.id.substring(0, 8)}...</td>
+            <td>${shortId}</td>
             <td>${animal.name}</td>
             <td>${animal.type || ''}</td>
             <td>${owner ? owner.name : 'неизвестно'}</td>
@@ -232,15 +288,15 @@ async function addVet() {
         await db.collection('vets').add({
             name: name,
             specialty: specialty,
-            createdAt: new Date().toISOString()
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
         document.getElementById('vetName').value = '';
         document.getElementById('vetSpecialty').value = '';
-        console.log('Ветеринар добавлен');
+        console.log("Ветеринар добавлен");
     } catch (error) {
-        console.error('Ошибка добавления ветеринара:', error);
-        alert('Ошибка добавления ветеринара');
+        console.error("Ошибка добавления ветеринара:", error);
+        alert('Ошибка добавления ветеринара: ' + error.message);
     }
 }
 
@@ -249,10 +305,10 @@ async function deleteVet(id) {
 
     try {
         await db.collection('vets').doc(id).delete();
-        console.log('Ветеринар удален');
+        console.log("Ветеринар удален");
     } catch (error) {
-        console.error('Ошибка удаления ветеринара:', error);
-        alert('Ошибка удаления ветеринара');
+        console.error("Ошибка удаления ветеринара:", error);
+        alert('Ошибка удаления ветеринара: ' + error.message);
     }
 }
 
@@ -261,9 +317,11 @@ function renderVets() {
     if (!tbody) return;
 
     tbody.innerHTML = '';
+
     data.vets.forEach(vet => {
+        const shortId = vet.id.substring(0, 6) + '...';
         const row = `<tr>
-            <td>${vet.id.substring(0, 8)}...</td>
+            <td>${shortId}</td>
             <td>${vet.name}</td>
             <td>${vet.specialty || ''}</td>
             <td>
@@ -290,14 +348,14 @@ async function addAppointment() {
             animalId: animalId,
             vetId: vetId,
             date: date,
-            createdAt: new Date().toISOString()
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
         document.getElementById('appointmentDate').value = '';
-        console.log('Запись добавлена');
+        console.log("Запись добавлена");
     } catch (error) {
-        console.error('Ошибка добавления записи:', error);
-        alert('Ошибка добавления записи');
+        console.error("Ошибка добавления записи:", error);
+        alert('Ошибка добавления записи: ' + error.message);
     }
 }
 
@@ -306,10 +364,10 @@ async function deleteAppointment(id) {
 
     try {
         await db.collection('appointments').doc(id).delete();
-        console.log('Запись удалена');
+        console.log("Запись удалена");
     } catch (error) {
-        console.error('Ошибка удаления записи:', error);
-        alert('Ошибка удаления записи');
+        console.error("Ошибка удаления записи:", error);
+        alert('Ошибка удаления записи: ' + error.message);
     }
 }
 
@@ -318,13 +376,15 @@ function renderAppointments() {
     if (!tbody) return;
 
     tbody.innerHTML = '';
+
     data.appointments.forEach(app => {
         const animal = data.animals.find(a => a.id === app.animalId);
         const vet = data.vets.find(v => v.id === app.vetId);
         const owner = animal ? data.owners.find(o => o.id === animal.ownerId) : null;
+        const shortId = app.id.substring(0, 6) + '...';
 
         const row = `<tr>
-            <td>${app.id.substring(0, 8)}...</td>
+            <td>${shortId}</td>
             <td>${new Date(app.date).toLocaleString()}</td>
             <td>${animal ? animal.name : 'неизвестно'}</td>
             <td>${vet ? vet.name : 'неизвестно'}</td>
@@ -348,11 +408,8 @@ function showVisitsByOwner() {
     const owner = data.owners.find(o => o.id === ownerId);
     if (!owner) return;
 
-    // Находим животных владельца
     const ownerAnimals = data.animals.filter(a => a.ownerId === ownerId);
     const animalIds = ownerAnimals.map(a => a.id);
-
-    // Находим записи для этих животных
     const visits = data.appointments.filter(app => animalIds.includes(app.animalId));
 
     let html = `<h3>Посещения ${owner.name}:</h3>`;
@@ -373,27 +430,24 @@ function showVisitsByOwner() {
 }
 
 // ==================== ИНИЦИАЛИЗАЦИЯ ====================
-function init() {
-    const statusEl = document.getElementById('firebaseStatus');
+async function init() {
+    console.log("Инициализация приложения...");
 
     // Проверяем подключение
-    db.collection('owners').get()
-        .then(() => {
-            statusEl.textContent = '✓ Подключено к базе данных Firebase';
-            statusEl.className = 'status connected';
-            console.log('Firebase подключен успешно');
+    const connected = await checkConnection();
 
-            // Настраиваем слушатели
-            setupListeners();
+    if (connected) {
+        // Настраиваем слушатели
+        setupListeners();
 
-            // Первоначальная загрузка данных
-            updateSelects();
-        })
-        .catch(error => {
-            statusEl.textContent = '✗ Ошибка подключения к Firebase: ' + error.message;
-            statusEl.className = 'status error';
-            console.error('Ошибка подключения Firebase:', error);
-        });
+        // Обновляем списки
+        updateSelects();
+
+        console.log("Приложение готово к работе");
+    } else {
+        console.error("Не удалось подключиться к Firebase");
+        alert("Не удалось подключиться к базе данных. Проверь консоль браузера.");
+    }
 }
 
 // Запускаем при загрузке страницы
